@@ -43,17 +43,16 @@
                 // 데이터 업데이트 시간 표시
                 document.getElementById('update-time').innerText = `최신 업데이트: ${data.header.resultMsg} (정상 가동 중)`;
 
-                // 표에 데이터 채워넣기
-                list.forEach((item, index) => {
-                    const row = `<tr>
-                        <td>${index + 1}</td>
-                        <td>${item.materialNm || '정보 없음'}</td>
-                        <td>${item.assignQty || '정보 없음'}</td>
-                        <td>${item.classNm || '정보 없음'}</td>
-                    </tr>`;
-                    tableBody.innerHTML += row;
-                });
-            })
+// 표에 데이터 채워넣기
+list.forEach((item, index) => {
+    const row = `<tr>
+        <td>${index + 1}</td>
+        <td>${item.dangerNmA || item.dangerNm || item.materialNm || '정보 없음'}</td>
+        <td>${item.qty || item.assignQty || '정보 없음'}</td>
+        <td>${item.classNmA || item.classNm || '정보 없음'}</td>
+    </tr>`;
+    tableBody.innerHTML += row;
+});
             .catch(error => {
                 console.error('에러 발생:', error);
                 document.getElementById('update-time').innerText = '데이터를 불러오는 중 오류가 발생했습니다.';
