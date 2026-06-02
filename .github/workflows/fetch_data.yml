@@ -14,7 +14,7 @@ jobs:
 
       - name: Fetch Data from Safety API
         run: |
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=1&numOfRows=100&dataType=JSON" -o data.json
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=1&numOfRows=8000&dataType=JSON" -o data.json
 
       - name: Commit and Push if changed
         run: |
