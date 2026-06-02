@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>소방청 위험물 검색 대시보드</title>
+    <title>소방청 위험물 실시간 검색</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f5f5f5; }
         h1 { color: #d9534f; text-align: center; }
-        .time { text-align: center; color: #666; margin-bottom: 20px; }
+        .time { text-align: center; color: #666; margin-bottom: 20px; font-weight: bold; }
         .search-container { text-align: center; margin-bottom: 20px; }
-        #search-input { width: 60%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
+        #search-input { width: 60%; padding: 12px; font-size: 16px; border: 2px solid #d9534f; border-radius: 4px; outline: none; }
         table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #d9534f; color: white; }
@@ -19,7 +19,7 @@
 <body>
 
     <h1>🚒 소방청 위험물 실시간 검색</h1>
-    <div class="time" id="update-time">데이터 로딩 중...</div>
+    <div class="time" id="update-time">데이터 로딩 중... 잠시만 기다려주세요.</div>
 
     <div class="search-container">
         <input type="text" id="search-input" placeholder="찾으시는 위험물 명칭이나 CAS 번호를 입력하세요...">
@@ -39,27 +39,38 @@
     </table>
 
     <script>
-        let allItems = []; // 전체 데이터를 담아둘 주머니
+        let allItems = []; 
 
-        // 1. 로봇이 저장해둔 전체 데이터 파일 읽어오기
+        // 1. 안전하게 데이터 가져오기
         fetch('./data.json')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('파일을 읽지 못했습니다.');
+                return response.json();
+            })
             .then(data => {
-                allItems = data.body.items; 
-                document.getElementById('update-time').innerText = `총 ${allItems.length}개의 위험물 데이터 연결 완료`;
+                // 데이터가 비어있거나 구조가 다를 때를 대비한 방어 코드
+                if (!data || !data.body || !data.body.items) {
+                    document.getElementById('update-time').innerText = '데이터 구조를 읽을 수 없습니다.';
+                    return;
+                }
 
-                // 처음에 전체 데이터 한 번 보여주기
-                displayData(allItems);
+                allItems = data.body.items; 
+                document.getElementById('update-time').innerText = `총 ${allItems.length}개의 위험물 데이터 연결 완료 ✨`;
+
+                // 처음에 데이터가 너무 많으면 렉이 걸리므로, 상위 100개만 먼저 보여주기
+                displayData(allItems.slice(0, 100));
             })
             .catch(error => {
-                console.error('에러 발생:', error);
-                document.getElementById('update-time').innerText = '데이터를 불러오는 중 오류가 발생했습니다.';
+                console.error('에러 상세:', error);
+                document.getElementById('update-time').innerText = '데이터 파일은 생성되었으나 사이트 연결 중 오류가 발생했습니다.';
             });
 
         // 2. 화면에 데이터를 표로 그려주는 함수
         function displayData(items) {
             const tableBody = document.querySelector('#data-table tbody');
-            tableBody.innerHTML = ''; // 기존 표 싹 비우기
+            
+            // 대용량 처리를 위해 메모리상에서 줄을 조립한 뒤 한 번에 삽입 (렉 방지)
+            let htmlRows = ''; 
 
             if(items.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#999;">검색 결과가 없습니다.</td></tr>`;
@@ -67,28 +78,35 @@
             }
 
             items.forEach((item, index) => {
-                const row = `<tr>
+                htmlRows += `<tr>
                     <td>${index + 1}</td>
                     <td><strong>${item.chemicalname || '정보 없음'}</strong></td>
                     <td>${item.casno || '-'}</td>
                     <td>${item.hazardmaterialclass || '정보 없음'}</td>
                 </tr>`;
-                tableBody.innerHTML += row;
             });
+            
+            tableBody.innerHTML = htmlRows;
         }
 
-        // 3. 검색창에 글자를 타이핑할 때마다 실시간으로 걸러내는 기능
+        // 3. 실시간 검색 기능 (타이핑할 때 가볍게 필터링)
         document.getElementById('search-input').addEventListener('input', function(e) {
-            const keyword = e.target.value.toLowerCase(); // 사용자가 입력한 단어 (소문자 변환)
+            const keyword = e.target.value.trim().toLowerCase(); 
             
-            // 이름이나 CAS 번호에 검색어가 포함된 것만 필터링
+            if (!keyword) {
+                // 검색어가 없으면 다시 처음 100개만 보여줘서 렉 방지
+                displayData(allItems.slice(0, 100));
+                return;
+            }
+
             const filtered = allItems.filter(item => {
                 const name = (item.chemicalname || '').toLowerCase();
                 const cas = (item.casno || '').toLowerCase();
                 return name.includes(keyword) || cas.includes(keyword);
             });
 
-            displayData(filtered); // 걸러진 데이터만 다시 표에 그리기
+            // 검색 결과는 필터링된 것 최대 200개까지만 띄우기 (성능 최적화)
+            displayData(filtered.slice(0, 200)); 
         });
     </script>
 </body>
