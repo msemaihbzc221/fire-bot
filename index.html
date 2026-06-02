@@ -65,7 +65,8 @@
                 <div class="info-label">🧪 화학식 (Formula)</div><div class="info-value" id="m-formula">-</div>
                 <div class="info-label">🌡️ 인화점 (Flash Point)</div><div class="info-value" id="m-flash">-</div>
                 <div class="info-label">☀️ 발화점 (Ignition Point)</div><div class="info-value" id="m-ignition">-</div>
-                <div class="info-label">💥 폭발 범위</div><div class="info-value" id="m-explode">-</div>
+                <div class="info-label">💥 폭발 상한선</div><div class="info-value" id="m-explode-max">-</div>
+                <div class="info-label">💥 폭발 하한선</div><div class="info-value" id="m-explode-min">-</div>
                 <div class="info-label">⚖️ 분자량</div><div class="info-value" id="m-weight">-</div>
                 <div class="info-label">🔥 위험물 유별</div><div class="info-value" id="m-class">-</div>
                 <div class="info-label">ℹ️ CAS 번호</div><div class="info-value" id="m-cas">-</div>
@@ -75,7 +76,7 @@
     </div>
 
     <script>
-        // 🔒 제공해주신 소방청 API 전용 인증키가 적용되었습니다.
+        // 🔒 보내주신 소방청 API 전용 인증키
         const SERVICE_KEY = "91020e37ba5a81c479cf412dba322e132aa216d82f382bb8ae37ce6ce8bf7ccc"; 
         let allItems = []; 
 
@@ -95,7 +96,7 @@
                 return;
             }
             items.forEach((item, index) => {
-                htmlRows += `<tr onclick="fetchDetail('${item.chemaicalno}', '${item.chemicalname}', '${item.casno}', '${item.hazardmaterialclass}', '${item.unno}')">
+                htmlRows += `<tr onclick="fetchDetail('${item.casno}', '${item.chemicalname}', '${item.hazardmaterialclass}', '${item.unno}')">
                     <td>${index + 1}</td>
                     <td><strong>${item.chemicalname || '정보 없음'}</strong></td>
                     <td>${item.casno || '-'}</td>
@@ -105,43 +106,43 @@
             tableBody.innerHTML = htmlRows;
         }
 
-        // 🚀 사용자가 행을 누르면 실행되는 실시간 소방청 데이터 약탈기(?)
-        function fetchDetail(id, name, cas, hClass, un) {
+        // 🚀 활용가이드 규격에 맞게 수정된 실시간 소방청 데이터 호출 함수
+        function fetchDetail(casNo, name, hClass, un) {
             const modal = document.getElementById('info-modal');
             const loading = document.getElementById('modal-loading');
             const body = document.getElementById('modal-body');
             
-            // 팝업창 기본 세팅
             document.getElementById('modal-chemical-name').innerText = name;
             loading.style.display = 'block';
             loading.innerText = "소방청에서 상세 물질 정보를 실시간으로 긁어오는 중... ⏳";
             body.style.display = 'none';
             modal.style.display = 'flex';
 
-            // 소방청 상세 조회용 특수 URL 조합
-            const url = `https://apis.data.go.kr/1661000/materialInfoSvc/getMaterialDetail?serviceKey=${SERVICE_KEY}&chemaicalno=${id}&dataType=JSON`;
+            // 가이드북 기준: getMaterialInfo 주소 사용 및 casNo 파라미터 전송
+            const url = `https://apis.data.go.kr/1661000/materialInfoSvc/getMaterialInfo?serviceKey=${SERVICE_KEY}&casNo=${casNo}&pageNo=1&numOfRows=1&dataType=JSON`;
 
             fetch(url)
                 .then(res => res.json())
                 .then(resData => {
-                    const detail = resData.body?.items?.[0] || {};
+                    // 가이드북 응답 규격 분석 적용
+                    const detail = resData.body?.items?.[0] || resData.items?.[0] || {};
                     
-                    // 소방청에서 받아온 따끈따끈한 데이터들 팝업창에 꽂아넣기
-                    document.getElementById('m-formula').innerText = detail.chemicalformula || '데이터 없음';
-                    document.getElementById('m-flash').innerText = detail.flashpoint ? detail.flashpoint + ' ℃' : '데이터 없음';
-                    document.getElementById('m-ignition').innerText = detail.ignitionpoint ? detail.ignitionpoint + ' ℃' : '데이터 없음';
-                    document.getElementById('m-explode').innerText = detail.explosionrange || '데이터 없음';
-                    document.getElementById('m-weight').innerText = detail.molecularweight || '데이터 없음';
-                    document.getElementById('m-class').innerText = hClass || '데이터 없음';
-                    document.getElementById('m-cas').innerText = cas || '-';
-                    document.getElementById('m-un').innerText = un || '없음';
+                    document.getElementById('m-formula').innerHTML = detail.chemicalformula || '데이터 없음';
+                    document.getElementById('m-flash').innerHTML = detail.flashpoint || '데이터 없음';
+                    document.getElementById('m-ignition').innerHTML = detail.ignitionpoint || '데이터 없음';
+                    document.getElementById('m-explode-max').innerHTML = detail.explosionmaximum || '데이터 없음';
+                    document.getElementById('m-explode-min').innerHTML = detail.explosionminimum || '데이터 없음';
+                    document.getElementById('m-weight').innerHTML = detail.molecularweight || '데이터 없음';
+                    document.getElementById('m-class').innerHTML = hClass || '데이터 없음';
+                    document.getElementById('m-cas').innerHTML = casNo || '-';
+                    document.getElementById('m-un').innerHTML = un || '없음';
 
                     loading.style.display = 'none';
                     body.style.display = 'grid';
                 })
                 .catch(err => {
                     console.error(err);
-                    loading.innerText = "상세 특성을 불러오는 중에 문제가 생겼거나, 소방청 원본에 특성 정보가 비어있는 물질입니다.";
+                    loading.innerText = "상세 특성을 불러오는 중에 문제가 생겼습니다. (CAS 번호가 등록되지 않았거나 소방청 서버 통신 에러)";
                 });
         }
 
