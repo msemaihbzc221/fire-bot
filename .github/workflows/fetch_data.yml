@@ -12,41 +12,43 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Fetch and Merge Data safely (1000 rows each)
+      - name: Fetch and Merge Data safely (100 rows loop)
         run: |
-          # 소방청이 허용하는 안전한 범위(1000개)로 1페이지부터 8페이지까지 나누어 다운로드
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=1&numOfRows=1000&dataType=JSON" -o p1.json
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=2&numOfRows=1000&dataType=JSON" -o p2.json
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=3&numOfRows=1000&dataType=JSON" -o p3.json
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=4&numOfRows=1000&dataType=JSON" -o p4.json
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=5&numOfRows=1000&dataType=JSON" -o p5.json
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=6&numOfRows=1000&dataType=JSON" -o p6.json
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=7&numOfRows=1000&dataType=JSON" -o p7.json
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=8&numOfRows=1000&dataType=JSON" -o p8.json
-          
-          # 파이썬을 이용해 8개의 파일을 하나의 깨끗하고 완전한 data.json으로 병합
+          # 파이썬을 이용해 1페이지부터 75페이지까지 100개씩 안전하게 긁어모으기
           python3 -c "
           import json
-          import os
+          import urllib.request
+          import time
           
           all_items = []
-          for i in range(1, 9):
-              filename = f'p{i}.json'
-              if os.path.exists(filename):
+          api_key = '${{ secrets.DATA_GO_KR_KEY }}'
+          
+          # 1페이지부터 75페이지까지 반복 (총 7,500개 커버)
+          for page in range(1, 76):
+              url = f'http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey={api_key}&pageNo={page}&numOfRows=100&dataType=JSON'
+              
+              for retry in range(3): # 서버가 응답 안 하면 최대 3번 다시 시도
                   try:
-                      with open(filename, 'r', encoding='utf-8') as f:
-                          data = json.load(f)
+                      req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                      with urllib.request.urlopen(req, timeout=10) as response:
+                          res_body = response.read().decode('utf-8')
+                          data = json.loads(res_body)
+                          
                           items = data.get('body', {}).get('items', [])
                           if items:
                               all_items.extend(items)
+                              print(f'[{page}/75] {len(items)}개 수집 완료 (누적: {len(all_items)}개)')
+                          break
                   except Exception as e:
-                      print(f'{filename} 읽기 실패:', e)
+                      print(f'[{page}/75] 시도 {retry+1} 실패, 다시 시도 중... 오류:', e)
+                      time.sleep(1)
           
-          # 최종 병합된 서식을 웹사이트(index.html) 구조에 맞게 저장
+          # 깨진 글자나 에러 없는 완벽한 형태의 데이터 파일로 저장
           merged = {'body': {'items': all_items}}
           with open('data.json', 'w', encoding='utf-8') as f:
               json.dump(merged, f, ensure_ascii=False)
-          print('안전 병합 완료! 총 수집된 위험물 개수:', len(all_items))
+          
+          print('===> 최종 안전 수집 완료! 총 개수:', len(all_items))
           "
 
       - name: Commit and Push if changed
@@ -54,5 +56,5 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add data.json
-          git diff-index --quiet HEAD || git commit -m "Update public data completely"
+          git diff-index --quiet HEAD || git commit -m "Update public data perfect loop"
           git push
