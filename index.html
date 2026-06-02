@@ -20,13 +20,12 @@
         .badge { background: #6c757d; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
         .badge-warning { background: #d9534f; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 5px; }
 
-        /* 대형 팝업창 스타일 */
+        /* 대형 팝업창 스타일 (많은 데이터를 담기 위해 넓히고 스크롤 적용) */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; padding: 25px; border-radius: 12px; width: 95%; max-width: 750px; max-height: 85vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
         .modal-header { border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-bottom: 15px; }
         .modal-title { font-size: 22px; color: #d9534f; font-weight: bold; margin: 0; }
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #aaa; }
-        .close-btn:hover { color: #333; }
         
         .section-title { font-size: 16px; font-weight: bold; color: #d9534f; margin-top: 20px; margin-bottom: 8px; border-left: 4px solid #d9534f; padding-left: 8px; }
         .info-grid { display: grid; grid-template-columns: 150px 1fr; gap: 10px; font-size: 14px; line-height: 1.5; }
@@ -150,7 +149,7 @@
             
             document.getElementById('modal-chemical-name').innerText = name;
             loading.style.display = 'block';
-            body.style.display = 'none'; // 오타 수정 완료: body.style.display로 정상화
+            body.style.display = 'none';
             modal.style.display = 'flex';
 
             searchLink.href = `https://www.google.com/search?q=${encodeURIComponent(name + ' 인화점 화학식')}`;
@@ -176,7 +175,7 @@
                     document.getElementById('m-mformula').innerText = getValue('molecularformula');
                     document.getElementById('m-weight').innerText = getValue('molecularweight');
                     
-                    // 증기밀도 가독성 패치
+                    // 증기밀도 파싱 및 무거운 가스 경고 배지 추가 자동화 원리
                     let vd = getValue('vapordensity');
                     if(vd !== '데이터 없음' && parseFloat(vd) > 1.0) {
                         vd += ` <span class="badge-warning">⚠️ 대기 가라앉음 (공기보다 무거움)</span>`;
