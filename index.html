@@ -23,9 +23,9 @@
         <thead>
             <tr>
                 <th>번호</th>
-                <th>위험물 명칭</th>
-                <th>지정수량</th>
-                <th>유별</th>
+                <th>위험물 명칭 (Chemical Name)</th>
+                <th>CAS 번호</th>
+                <th>위험물 유별 (Hazard Class)</th>
             </tr>
         </thead>
         <tbody>
@@ -33,26 +33,27 @@
     </table>
 
     <script>
-        // 로봇이 저장해둔 data.json 파일을 읽어옵니다 (같은 주소라 CORS 에러 없음!)
         fetch('./data.json')
             .then(response => response.json())
             .then(data => {
-                const list = data.body.items; // 공공데이터 내부 구조에 맞춰 접근
+                // 올려주신 데이터 구조(data.body.items)에 정확히 접근
+                const list = data.body.items; 
                 const tableBody = document.querySelector('#data-table tbody');
                 
-                // 데이터 업데이트 시간 표시
-                document.getElementById('update-time').innerText = `최신 업데이트: ${data.header.resultMsg} (정상 가동 중)`;
+                // 상단에 정상 수신 메시지 출력
+                document.getElementById('update-time').innerText = `최신 업데이트 상태: ${data.header.resultMsg} (정상 연결 완료)`;
 
-// 표에 데이터 채워넣기
-list.forEach((item, index) => {
-    const row = `<tr>
-        <td>${index + 1}</td>
-        <td>${item.dangerNmA || item.dangerNm || item.materialNm || '정보 없음'}</td>
-        <td>${item.qty || item.assignQty || '정보 없음'}</td>
-        <td>${item.classNmA || item.classNm || '정보 없음'}</td>
-    </tr>`;
-    tableBody.innerHTML += row;
-});
+                // 가져온 100개의 데이터를 표에 한 줄씩 채워넣기
+                list.forEach((item, index) => {
+                    const row = `<tr>
+                        <td>${index + 1}</td>
+                        <td><strong>${item.chemicalname || '정보 없음'}</strong></td>
+                        <td>${item.casno || '-'}</td>
+                        <td>${item.hazardmaterialclass || '정보 없음'}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            })
             .catch(error => {
                 console.error('에러 발생:', error);
                 document.getElementById('update-time').innerText = '데이터를 불러오는 중 오류가 발생했습니다.';
