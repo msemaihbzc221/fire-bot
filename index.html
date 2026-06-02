@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소방청 위험물 정보 대시보드</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f5f5f5; }
+        h1 { color: #d9534f; text-align: center; }
+        .time { text-align: center; color: #666; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #d9534f; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+    </style>
+</head>
+<body>
+
+    <h1>🚒 소방청 위험물 정보 목록</h1>
+    <div class="time" id="update-time">데이터 로딩 중...</div>
+
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>번호</th>
+                <th>위험물 명칭</th>
+                <th>지정수량</th>
+                <th>유별</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
+    </table>
+
+    <script>
+        // 로봇이 저장해둔 data.json 파일을 읽어옵니다 (같은 주소라 CORS 에러 없음!)
+        fetch('./data.json')
+            .then(response => response.json())
+            .then(data => {
+                const list = data.body.items; // 공공데이터 내부 구조에 맞춰 접근
+                const tableBody = document.querySelector('#data-table tbody');
+                
+                // 데이터 업데이트 시간 표시
+                document.getElementById('update-time').innerText = `최신 업데이트: ${data.header.resultMsg} (정상 가동 중)`;
+
+                // 표에 데이터 채워넣기
+                list.forEach((item, index) => {
+                    const row = `<tr>
+                        <td>${index + 1}</td>
+                        <td>${item.materialNm || '정보 없음'}</td>
+                        <td>${item.assignQty || '정보 없음'}</td>
+                        <td>${item.classNm || '정보 없음'}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            })
+            .catch(error => {
+                console.error('에러 발생:', error);
+                document.getElementById('update-time').innerText = '데이터를 불러오는 중 오류가 발생했습니다.';
+            });
+    </script>
+</body>
+</html>
