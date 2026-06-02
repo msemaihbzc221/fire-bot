@@ -41,14 +41,13 @@
     <script>
         let allItems = []; 
 
-        // 1. 안전하게 데이터 가져오기
-        fetch('./data.json')
+        // 1. 캐시 방지를 위해 주소 뒤에 랜덤 번호를 붙여 새로 가져옵니다.
+        fetch('./data.json?v=' + Math.random())
             .then(response => {
-                if (!response.ok) throw new Error('파일을 읽지 못했습니다.');
+                if (!response.ok) throw new Error('네트워크 응답에 문제가 있습니다.');
                 return response.json();
             })
             .then(data => {
-                // 데이터가 비어있거나 구조가 다를 때를 대비한 방어 코드
                 if (!data || !data.body || !data.body.items) {
                     document.getElementById('update-time').innerText = '데이터 구조를 읽을 수 없습니다.';
                     return;
@@ -57,19 +56,17 @@
                 allItems = data.body.items; 
                 document.getElementById('update-time').innerText = `총 ${allItems.length}개의 위험물 데이터 연결 완료 ✨`;
 
-                // 처음에 데이터가 너무 많으면 렉이 걸리므로, 상위 100개만 먼저 보여주기
-                displayData(allItems.slice(0, 100));
+                // 렉 걸림 방지: 처음에는 상위 50개만 아주 가볍게 보여줍니다.
+                displayData(allItems.slice(0, 50));
             })
             .catch(error => {
                 console.error('에러 상세:', error);
-                document.getElementById('update-time').innerText = '데이터 파일은 생성되었으나 사이트 연결 중 오류가 발생했습니다.';
+                document.getElementById('update-time').innerText = '데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 새로고침 해주세요.';
             });
 
-        // 2. 화면에 데이터를 표로 그려주는 함수
+        // 2. 화면에 데이터를 표로 그려주는 고성능 함수
         function displayData(items) {
             const tableBody = document.querySelector('#data-table tbody');
-            
-            // 대용량 처리를 위해 메모리상에서 줄을 조립한 뒤 한 번에 삽입 (렉 방지)
             let htmlRows = ''; 
 
             if(items.length === 0) {
@@ -77,36 +74,38 @@
                 return;
             }
 
-            items.forEach((item, index) => {
+            // 부하를 줄이기 위해 빠르게 문자열로 결합
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
                 htmlRows += `<tr>
-                    <td>${index + 1}</td>
+                    <td>${i + 1}</td>
                     <td><strong>${item.chemicalname || '정보 없음'}</strong></td>
                     <td>${item.casno || '-'}</td>
                     <td>${item.hazardmaterialclass || '정보 없음'}</td>
                 </tr>`;
-            });
+            }
             
             tableBody.innerHTML = htmlRows;
         }
 
-        // 3. 실시간 검색 기능 (타이핑할 때 가볍게 필터링)
+        // 3. 실시간 검색 기능 (타이핑할 때 즉시 필터링)
         document.getElementById('search-input').addEventListener('input', function(e) {
             const keyword = e.target.value.trim().toLowerCase(); 
             
             if (!keyword) {
-                // 검색어가 없으면 다시 처음 100개만 보여줘서 렉 방지
-                displayData(allItems.slice(0, 100));
+                displayData(allItems.slice(0, 50));
                 return;
             }
 
+            // 전체 7277개 중에서 검색어가 들어간 것만 빠르게 추출
             const filtered = allItems.filter(item => {
                 const name = (item.chemicalname || '').toLowerCase();
                 const cas = (item.casno || '').toLowerCase();
                 return name.includes(keyword) || cas.includes(keyword);
             });
 
-            // 검색 결과는 필터링된 것 최대 200개까지만 띄우기 (성능 최적화)
-            displayData(filtered.slice(0, 200)); 
+            // 검색 결과는 최대 100개까지만 잘라서 보여줌으로써 화면 멈춤 현상 완벽 방지
+            displayData(filtered.slice(0, 100)); 
         });
     </script>
 </body>
