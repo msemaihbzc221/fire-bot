@@ -1,0 +1,25 @@
+name: Get Public Data Every Day
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch_and_save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Data from Safety API
+        run: |
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=1&numOfRows=100&dataType=JSON" -o data.json
+
+      - name: Commit and Push if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data.json
+          git diff-index --quiet HEAD || git commit -m "Update public data"
+          git push
