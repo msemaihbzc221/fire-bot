@@ -12,14 +12,47 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Fetch Data from Safety API
+      - name: Fetch and Merge Data safely (1000 rows each)
         run: |
-          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=1&numOfRows=8000&dataType=JSON" -o data.json
+          # 소방청이 허용하는 안전한 범위(1000개)로 1페이지부터 8페이지까지 나누어 다운로드
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=1&numOfRows=1000&dataType=JSON" -o p1.json
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=2&numOfRows=1000&dataType=JSON" -o p2.json
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=3&numOfRows=1000&dataType=JSON" -o p3.json
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=4&numOfRows=1000&dataType=JSON" -o p4.json
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=5&numOfRows=1000&dataType=JSON" -o p5.json
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=6&numOfRows=1000&dataType=JSON" -o p6.json
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=7&numOfRows=1000&dataType=JSON" -o p7.json
+          curl -L "http://apis.data.go.kr/1661000/materialInfoSvc/getMaterialList?serviceKey=${{ secrets.DATA_GO_KR_KEY }}&pageNo=8&numOfRows=1000&dataType=JSON" -o p8.json
+          
+          # 파이썬을 이용해 8개의 파일을 하나의 깨끗하고 완전한 data.json으로 병합
+          python3 -c "
+          import json
+          import os
+          
+          all_items = []
+          for i in range(1, 9):
+              filename = f'p{i}.json'
+              if os.path.exists(filename):
+                  try:
+                      with open(filename, 'r', encoding='utf-8') as f:
+                          data = json.load(f)
+                          items = data.get('body', {}).get('items', [])
+                          if items:
+                              all_items.extend(items)
+                  except Exception as e:
+                      print(f'{filename} 읽기 실패:', e)
+          
+          # 최종 병합된 서식을 웹사이트(index.html) 구조에 맞게 저장
+          merged = {'body': {'items': all_items}}
+          with open('data.json', 'w', encoding='utf-8') as f:
+              json.dump(merged, f, ensure_ascii=False)
+          print('안전 병합 완료! 총 수집된 위험물 개수:', len(all_items))
+          "
 
       - name: Commit and Push if changed
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add data.json
-          git diff-index --quiet HEAD || git commit -m "Update public data"
+          git diff-index --quiet HEAD || git commit -m "Update public data completely"
           git push
