@@ -19,7 +19,7 @@
         tbody tr:hover { background-color: #fff5f5; }
         .badge { background: #6c757d; color: white; padding: 5px 10px; border-radius: 4px; font-size: 13px; font-weight: bold; }
 
-        /* 스크린샷의 카드 스타일 팝업창 완벽 구현 */
+        /* 카드 스타일 팝업창 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 550px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); position: relative; }
         .modal-header { border-bottom: 2px solid #d9534f; padding-bottom: 12px; margin-bottom: 20px; }
@@ -27,7 +27,6 @@
         .close-btn { position: absolute; top: 20px; right: 25px; font-size: 28px; cursor: pointer; color: #aaa; border: none; background: none; }
         .close-btn:hover { color: #333; }
         
-        /* 세로 정렬 카드 로우 */
         .info-row { display: flex; align-items: center; margin-bottom: 12px; font-size: 15px; }
         .info-label { width: 160px; background: #f1f3f5; padding: 8px 12px; border-radius: 6px; font-weight: bold; color: #444; display: flex; align-items: center; gap: 6px; }
         .info-value { padding-left: 15px; color: #111; font-weight: 500; flex: 1; word-break: break-all; }
@@ -111,7 +110,6 @@
         const SERVICE_KEY = "91020e37ba5a81c479cf412dba322e132aa216d82f382bb8ae37ce6ce8bf7ccc"; 
         let allItems = []; 
 
-        // 로컬 data.json 로드
         fetch('./data.json?v=' + Math.random())
             .then(response => response.json())
             .then(data => {
@@ -123,19 +121,30 @@
                 document.getElementById('update-time').innerText = "데이터 로드 실패 ❌ data.json 파일을 확인해주세요.";
             });
 
-        function displayData(items) {
+        function displayData(rawItems) {
             const tableBody = document.querySelector('#data-table tbody');
             let htmlRows = ''; 
-            if(!items || items.length === 0) {
+            
+            // 🛡️ [버그 수정 핵심] 어떤 경우라도 강제로 완전히 정제된 리스트(Array)화 시킴
+            let items = Array.isArray(rawItems) ? rawItems : [rawItems];
+            items = items.filter(Boolean);
+
+            if(items.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#999;">검색 결과가 없습니다.</td></tr>`;
                 return;
             }
+
             items.forEach((item, index) => {
-                htmlRows += `<tr onclick="fetchDetail('${item.casno || ''}', '${item.chemicalname || ''}', '${item.hazardmaterialclass || ''}', '${item.unno || ''}')">
+                let cName = (item.chemicalname || '').replace(/'/g, "\\'"); // 따옴표 오작동 방지
+                let cas = item.casno || '-';
+                let hClass = item.hazardmaterialclass || '정보 없음';
+                let un = item.unno || '-';
+
+                htmlRows += `<tr onclick="fetchDetail('${cas}', '${cName}', '${hClass}', '${un}')">
                     <td>${index + 1}</td>
-                    <td><strong>${item.chemicalname || '정보 없음'}</strong></td>
-                    <td>${item.casno || '-'}</td>
-                    <td><span class="badge">${item.hazardmaterialclass || '정보 없음'}</span></td>
+                    <td><strong>${cName}</strong></td>
+                    <td>${cas}</td>
+                    <td><span class="badge">${hClass}</span></td>
                 </tr>`;
             });
             tableBody.innerHTML = htmlRows;
@@ -145,13 +154,11 @@
             const modal = document.getElementById('info-modal');
             const searchLink = document.getElementById('google-search-link');
             
-            // 1. 클릭하자마자 기본 정보 및 대기 값 즉시 세팅 (원천 튕김 방지)
             document.getElementById('modal-chemical-name').innerText = name;
-            document.getElementById('m-hazard-class').innerText = hClass || '데이터 없음';
-            document.getElementById('m-cas').innerText = casNo || '-';
-            document.getElementById('m-un').innerText = un || '-';
+            document.getElementById('m-hazard-class').innerText = hClass;
+            document.getElementById('m-cas').innerText = casNo;
+            document.getElementById('m-un').innerText = un;
             
-            // API 비동기 대기용 초기화
             document.getElementById('m-formula').innerText = '불러오는 중... ⏳';
             document.getElementById('m-flash').innerText = '불러오는 중... ⏳';
             document.getElementById('m-ignition').innerText = '불러오는 중... ⏳';
@@ -159,18 +166,14 @@
             document.getElementById('m-exmin').innerText = '불러오는 중... ⏳';
             document.getElementById('m-weight').innerText = '불러오는 중... ⏳';
 
-            // 구글 우회 검색 링크 바인딩
             searchLink.href = `https://www.google.com/search?q=${encodeURIComponent(name + ' 화학식 인화점 분자량 CAS ' + casNo)}`;
-            
-            // 팝업창 무조건 오픈
             modal.style.display = 'flex';
 
-            if (!casNo || casNo === '-') {
+            if (!casNo || casNo === '-' || casNo === '데이터 없음') {
                 setToDefault();
                 return;
             }
 
-            // 소방청 상세 정보 API 호출
             const url = `https://apis.data.go.kr/1661000/materialInfoSvc/getMaterialInfo?serviceKey=${SERVICE_KEY}&casNo=${casNo.trim()}&pageNo=1&numOfRows=1&dataType=JSON`;
 
             fetch(url)
@@ -195,7 +198,6 @@
                             return '데이터 없음';
                         };
 
-                        // 화면 ID 구조에 맞춰 데이터 치환 매핑
                         document.getElementById('m-formula').innerText = getValue('chemicalformula');
                         document.getElementById('m-flash').innerHTML = getValue('flashpoint');
                         document.getElementById('m-ignition').innerHTML = getValue('ignitionpoint');
@@ -204,17 +206,17 @@
                         document.getElementById('m-weight').innerText = getValue('molecularweight');
 
                     } catch (innerErr) {
-                        console.error("데이터 매칭 에러:", innerErr);
+                        console.error(innerErr);
                         setToDefault();
                     }
                 })
                 .catch(err => {
-                    console.error("API 서버 통신 실패:", err);
+                    console.error(err);
                     setToDefault();
                 });
         }
 
-        // 데이터가 없거나 서버가 뻗었을 때 깔끔하게 '데이터 없음'으로 채워주는 안전함수
+        functionPlatform
         function setToDefault() {
             const targets = ['m-formula', 'm-flash', 'm-ignition', 'm-exmax', 'm-exmin', 'm-weight'];
             targets.forEach(id => {
@@ -231,13 +233,16 @@
             }
         }
 
-        // 검색 처리
+        // 검색 처리부 (1개 슬라이싱 배열 파괴 문제 원천 차단)
         document.getElementById('search-input').addEventListener('input', function(e) {
             const keyword = e.target.value.trim().toLowerCase(); 
             if (!keyword) { displayData(allItems.slice(0, 50)); return; }
+            
             const filtered = allItems.filter(item => {
                 return (item.chemicalname || '').toLowerCase().includes(keyword) || (item.casno || '').toLowerCase().includes(keyword);
             });
+            
+            // 데이터 수와 관계없이 안전하게 전송
             displayData(filtered.slice(0, 100)); 
         });
     </script>
