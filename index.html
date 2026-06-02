@@ -3,45 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>소방청 위험물 실시간 검색</title>
+    <title>소방청 위험물 실시간 종합 검색</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f8f9fa; color: #333; }
         h1 { color: #d9534f; text-align: center; margin-bottom: 5px; }
         .time { text-align: center; color: #666; margin-bottom: 25px; font-weight: bold; }
         .search-container { text-align: center; margin-bottom: 25px; }
-        #search-input { width: 60%; padding: 14px; font-size: 16px; border: 2px solid #d9534f; border-radius: 30px; outline: none; box-shadow: 0 3px 6px rgba(0,0,0,0.1); transition: all 0.3s; }
-        #search-input:focus { box-shadow: 0 3px 10px rgba(217, 83, 79, 0.3); }
+        #search-input { width: 60%; padding: 14px; font-size: 16px; border: 2px solid #d9534f; border-radius: 30px; outline: none; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
         
         table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
         th, td { padding: 14px; text-align: left; border-bottom: 1px solid #eee; }
         th { background-color: #d9534f; color: white; font-size: 15px; }
         
-        /* 💡 마우스 올리면 클릭 유도 스타일 */
         tbody tr { cursor: pointer; transition: background 0.2s; }
         tbody tr:hover { background-color: #fff5f5; }
         .badge { background: #6c757d; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
 
-        /* 🚪 팝업창(모달) 스타일 */
+        /* 팝업창 스타일 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; animation: fadeIn 0.2s ease-out; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 550px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
         .modal-header { border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-bottom: 20px; }
         .modal-title { font-size: 20px; color: #d9534f; font-weight: bold; margin: 0; }
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #aaa; }
-        .close-btn:hover { color: #333; }
-        .info-row { display: flex; margin-bottom: 12px; font-size: 15px; line-height: 1.5; }
-        .info-label { width: 140px; font-weight: bold; color: #555; }
-        .info-value { flex: 1; color: #111; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .info-grid { display: grid; grid-template-columns: 140px 1fr; gap: 12px; font-size: 15px; line-height: 1.5; }
+        .info-label { font-weight: bold; color: #555; background: #f1f3f5; padding: 4px 8px; border-radius: 4px; }
+        .info-value { color: #111; padding: 4px 8px; font-weight: 500; }
+        .loading-text { text-align: center; color: #d9534f; font-weight: bold; padding: 20px 0; }
     </style>
 </head>
 <body>
 
-    <h1>🚒 소방청 위험물 실시간 검색</h1>
-    <div class="time" id="update-time">데이터 구조 분석 중...</div>
+    <h1>🚒 소방청 위험물 실시간 종합 검색</h1>
+    <div class="time" id="update-time">데이터 로딩 중...</div>
 
     <div class="search-container">
-        <input type="text" id="search-input" placeholder="위험물 명칭이나 CAS 번호를 입력해보세요 (예: 스쿠알렌)...">
+        <input type="text" id="search-input" placeholder="위험물 명칭이나 CAS 번호를 입력해보세요...">
     </div>
 
     <table id="data-table">
@@ -53,8 +50,7 @@
                 <th>위험물 유별 (Hazard Class)</th>
             </tr>
         </thead>
-        <tbody>
-            </tbody>
+        <tbody></tbody>
     </table>
 
     <div class="modal-overlay" id="info-modal" onclick="closeModal(event)">
@@ -63,77 +59,87 @@
             <div class="modal-header">
                 <h3 class="modal-title" id="modal-chemical-name">위험물 상세 특성</h3>
             </div>
-            <div id="modal-body">
-                <div class="info-row"><div class="info-label">ℹ️ CAS 번호</div><div class="info-value" id="m-cas">-</div></div>
-                <div class="info-row"><div class="info-label">🔥 위험물 유별</div><div class="info-value" id="m-class">-</div></div>
-                <div class="info-row"><div class="info-label">📦 UN 번호</div><div class="info-value" id="m-un">-</div></div>
-                <div class="info-row"><div class="info-label">🔢 소방청 관리번호</div><div class="info-value" id="m-no">-</div></div>
-                <div class="info-row" style="margin-top: 15px; background: #f8f9fa; padding: 10px; border-radius: 6px;"><div class="info-label" style="width:80px;">💡 안내</div><div class="info-value" style="font-size:13px; color:#666;">본 물질은 소방청 위험물안전관리법규에 의거하여 관리되는 물질입니다.</div></div>
+            <div id="modal-loading" class="loading-text">소방청에서 상세 특성 유비쿼터스 로딩 중...</div>
+            <div id="modal-body" class="info-grid" style="display: none;">
+                <div class="info-label">🧪 화학식 (Formula)</div><div class="info-value" id="m-formula">-</div>
+                <div class="info-label">🌡️ 인화점 (Flash Point)</div><div class="info-value" id="m-flash">-</div>
+                <div class="info-label">☀️ 발화점 (Ignition Point)</div><div class="info-value" id="m-ignition">-</div>
+                <div class="info-label">💥 폭발 범위</div><div class="info-value" id="m-explode">-</div>
+                <div class="info-label">⚖️ 분자량</div><div class="info-value" id="m-weight">-</div>
+                <div class="info-label">🔥 위험물 유별</div><div class="info-value" id="m-class">-</div>
+                <div class="info-label">ℹ️ CAS 번호</div><div class="info-value" id="m-cas">-</div>
+                <div class="info-label">📦 UN 번호</div><div class="info-value" id="m-un">-</div>
             </div>
         </div>
     </div>
 
     <script>
+        // ⭐ 중요: 본인의 공공데이터포털 인증키를 아래에 붙여넣으세요!
+        const SERVICE_KEY = "여기에_내_인증키_넣기"; 
         let allItems = []; 
 
         fetch('./data.json?v=' + Math.random())
-            .then(response => {
-                if (!response.ok) throw new Error('네트워크 응답 실패');
-                return response.text();
-            })
-            .then(text => {
-                try {
-                    const data = JSON.parse(text.trim());
-                    allItems = data.body?.items || data.items || (Array.isArray(data) ? data : Object.values(data));
-                    document.getElementById('update-time').innerText = `총 ${allItems.length}개의 위험물 데이터 연결 완료 ✨ (행을 클릭하면 상세 특성이 나옵니다)`;
-                    displayData(allItems.slice(0, 50));
-                } catch (e) {
-                    document.getElementById('update-time').innerText = '데이터 해석 중 오류가 발생했습니다.';
-                }
-            })
-            .catch(error => {
-                document.getElementById('update-time').innerText = '데이터 파일을 읽어오지 못했습니다.';
+            .then(response => response.json())
+            .then(data => {
+                allItems = data.body?.items || data.items || [];
+                document.getElementById('update-time').innerText = `총 ${allItems.length}개의 위험물 연결 완료 ✨ (행을 클릭하면 인화점/화학식이 실시간 호출됩니다)`;
+                displayData(allItems.slice(0, 50));
             });
 
         function displayData(items) {
             const tableBody = document.querySelector('#data-table tbody');
             let htmlRows = ''; 
-
             if(!items || items.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#999;">검색 결과가 없습니다.</td></tr>`;
                 return;
             }
-
             items.forEach((item, index) => {
-                if (!item) return;
-                const name = item.chemicalname || '정보 없음';
-                const cas = item.casno || '-';
-                const hClass = item.hazardmaterialclass || '정보 없음';
-                
-                // 클릭 시 데이터 주머니 정보를 보내도록 함수 연결
-                htmlRows += `<tr onclick='openModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
+                htmlRows += `<tr onclick="fetchDetail('${item.chemaicalno}', '${item.chemicalname}', '${item.casno}', '${item.hazardmaterialclass}', '${item.unno}')">
                     <td>${index + 1}</td>
-                    <td><strong>${name}</strong></td>
-                    <td>${cas}</td>
-                    <td><span class="badge">${hClass}</span></td>
+                    <td><strong>${item.chemicalname || '정보 없음'}</strong></td>
+                    <td>${item.casno || '-'}</td>
+                    <td><span class="badge">${item.hazardmaterialclass || '정보 없음'}</span></td>
                 </tr>`;
             });
-            
             tableBody.innerHTML = htmlRows;
         }
 
-        // 🚪 팝업창 열기 기능
-        function openModal(item) {
-            document.getElementById('modal-chemical-name').innerText = item.chemicalname || '위험물 상세 특성';
-            document.getElementById('m-cas').innerText = item.casno || '정보 없음';
-            document.getElementById('m-class').innerText = item.hazardmaterialclass || '정보 없음';
-            document.getElementById('m-un').innerText = item.unno || '등록된 UN번호 없음 (비위험물군)';
-            document.getElementById('m-no').innerText = item.chemaicalno || '-';
+        // 🚀 클릭 시 소방청 상세 API를 실시간 호출하는 핵심 함수
+        function fetchDetail(id, name, cas, hClass, un) {
+            const modal = document.getElementById('info-modal');
+            const loading = document.getElementById('modal-loading');
+            const body = document.getElementById('modal-body');
             
-            document.getElementById('info-modal').style.display = 'flex';
+            document.getElementById('modal-chemical-name').innerText = name;
+            loading.style.display = 'block';
+            body.style.display = 'none';
+            modal.style.display = 'flex';
+
+            // 소방청 상세 조회 URL (프록시 서버 통과를 원칙으로 하나, 연습용으로 직접 찌르기 시도)
+            const url = `https://apis.data.go.kr/1661000/materialInfoSvc/getMaterialDetail?serviceKey=${SERVICE_KEY}&chemaicalno=${id}&dataType=JSON`;
+
+            fetch(url)
+                .then(res => res.json())
+                .then(resData => {
+                    const detail = resData.body?.items?.[0] || {};
+                    
+                    document.getElementById('m-formula').innerText = detail.chemicalformula || '데이터 없음';
+                    document.getElementById('m-flash').innerText = detail.flashpoint ? detail.flashpoint + ' ℃' : '데이터 없음';
+                    document.getElementById('m-ignition').innerText = detail.ignitionpoint ? detail.ignitionpoint + ' ℃' : '데이터 없음';
+                    document.getElementById('m-explode').innerText = detail.explosionrange || '데이터 없음';
+                    document.getElementById('m-weight').innerText = detail.molecularweight || '데이터 없음';
+                    document.getElementById('m-class').innerText = hClass || '데이터 없음';
+                    document.getElementById('m-cas').innerText = cas || '-';
+                    document.getElementById('m-un').innerText = un || '없음';
+
+                    loading.style.display = 'none';
+                    body.style.display = 'grid';
+                })
+                .catch(err => {
+                    loading.innerText = "상세 정보를 불러오는 중 에러가 발생했거나, 소방청에서 제공하지 않는 물질입니다.";
+                });
         }
 
-        // 🚪 바깥 클릭 시 팝업 닫기
         function closeModal(e) {
             if(e.target.classList.contains('modal-overlay')) {
                 document.getElementById('info-modal').style.display = 'none';
@@ -142,15 +148,9 @@
 
         document.getElementById('search-input').addEventListener('input', function(e) {
             const keyword = e.target.value.trim().toLowerCase(); 
-            if (!keyword) {
-                displayData(allItems.slice(0, 50));
-                return;
-            }
+            if (!keyword) { displayData(allItems.slice(0, 50)); return; }
             const filtered = allItems.filter(item => {
-                if (!item) return false;
-                const name = (item.chemicalname || '').toLowerCase();
-                const cas = (item.casno || '').toLowerCase();
-                return name.includes(keyword) || cas.includes(keyword);
+                return (item.chemicalname || '').toLowerCase().includes(keyword) || (item.casno || '').toLowerCase().includes(keyword);
             });
             displayData(filtered.slice(0, 100)); 
         });
