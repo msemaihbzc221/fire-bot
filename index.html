@@ -25,6 +25,7 @@
         .modal-header { border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-bottom: 20px; }
         .modal-title { font-size: 20px; color: #d9534f; font-weight: bold; margin: 0; }
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #aaa; }
+        .close-btn:hover { color: #333; }
         
         .info-grid { display: grid; grid-template-columns: 140px 1fr; gap: 12px; font-size: 15px; line-height: 1.5; }
         .info-label { font-weight: bold; color: #555; background: #f1f3f5; padding: 4px 8px; border-radius: 4px; }
@@ -59,7 +60,7 @@
             <div class="modal-header">
                 <h3 class="modal-title" id="modal-chemical-name">위험물 상세 특성</h3>
             </div>
-            <div id="modal-loading" class="loading-text">소방청에서 상세 특성 유비쿼터스 로딩 중...</div>
+            <div id="modal-loading" class="loading-text">소방청에서 상세 물질 정보를 실시간으로 긁어오는 중... ⏳</div>
             <div id="modal-body" class="info-grid" style="display: none;">
                 <div class="info-label">🧪 화학식 (Formula)</div><div class="info-value" id="m-formula">-</div>
                 <div class="info-label">🌡️ 인화점 (Flash Point)</div><div class="info-value" id="m-flash">-</div>
@@ -74,8 +75,8 @@
     </div>
 
     <script>
-        // ⭐ 중요: 본인의 공공데이터포털 인증키를 아래에 붙여넣으세요!
-        const SERVICE_KEY = "여기에_내_인증키_넣기"; 
+        // 🔒 제공해주신 소방청 API 전용 인증키가 적용되었습니다.
+        const SERVICE_KEY = "91020e37ba5a81c479cf412dba322e132aa216d82f382bb8ae37ce6ce8bf7ccc"; 
         let allItems = []; 
 
         fetch('./data.json?v=' + Math.random())
@@ -104,18 +105,20 @@
             tableBody.innerHTML = htmlRows;
         }
 
-        // 🚀 클릭 시 소방청 상세 API를 실시간 호출하는 핵심 함수
+        // 🚀 사용자가 행을 누르면 실행되는 실시간 소방청 데이터 약탈기(?)
         function fetchDetail(id, name, cas, hClass, un) {
             const modal = document.getElementById('info-modal');
             const loading = document.getElementById('modal-loading');
             const body = document.getElementById('modal-body');
             
+            // 팝업창 기본 세팅
             document.getElementById('modal-chemical-name').innerText = name;
             loading.style.display = 'block';
+            loading.innerText = "소방청에서 상세 물질 정보를 실시간으로 긁어오는 중... ⏳";
             body.style.display = 'none';
             modal.style.display = 'flex';
 
-            // 소방청 상세 조회 URL (프록시 서버 통과를 원칙으로 하나, 연습용으로 직접 찌르기 시도)
+            // 소방청 상세 조회용 특수 URL 조합
             const url = `https://apis.data.go.kr/1661000/materialInfoSvc/getMaterialDetail?serviceKey=${SERVICE_KEY}&chemaicalno=${id}&dataType=JSON`;
 
             fetch(url)
@@ -123,6 +126,7 @@
                 .then(resData => {
                     const detail = resData.body?.items?.[0] || {};
                     
+                    // 소방청에서 받아온 따끈따끈한 데이터들 팝업창에 꽂아넣기
                     document.getElementById('m-formula').innerText = detail.chemicalformula || '데이터 없음';
                     document.getElementById('m-flash').innerText = detail.flashpoint ? detail.flashpoint + ' ℃' : '데이터 없음';
                     document.getElementById('m-ignition').innerText = detail.ignitionpoint ? detail.ignitionpoint + ' ℃' : '데이터 없음';
@@ -136,7 +140,8 @@
                     body.style.display = 'grid';
                 })
                 .catch(err => {
-                    loading.innerText = "상세 정보를 불러오는 중 에러가 발생했거나, 소방청에서 제공하지 않는 물질입니다.";
+                    console.error(err);
+                    loading.innerText = "상세 특성을 불러오는 중에 문제가 생겼거나, 소방청 원본에 특성 정보가 비어있는 물질입니다.";
                 });
         }
 
